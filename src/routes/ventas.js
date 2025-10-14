@@ -204,11 +204,11 @@ router.post("/", async (req, res) => {
 
       // Insert venta
       const { rows: vIns } = await client.query(
-        `INSERT INTO ventas (cliente, vendedor, total, fecha_hora)
-        VALUES ($1, $2, $3, COALESCE($4, CURRENT_TIMESTAMP AT TIME ZONE 'America/Guatemala'))
-        RETURNING id, fecha_hora`,
+        `INSERT INTO ventas (cliente, vendedor, total, fecha)
+         VALUES ($1,$2,$3, COALESCE($4, CURRENT_DATE))
+         RETURNING id, fecha`,
         [clienteId, vendedor, total, fecha]
-    );
+      );
       const ventaId = vIns[0].id;
 
       // Insert detalle + actualizar stock
