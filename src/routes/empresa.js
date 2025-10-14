@@ -14,23 +14,27 @@ router.get("/", async (_req, res) => {
     fail(res, "Error obteniendo empresa", 500);
   }
 });
-
-// PUT /api/empresa  (actualiza id=1)
+// PUT /api/empresa (actualiza empresa con id = 1)
 router.put("/", async (req, res) => {
   try {
-    const { nombre, ubicacion, telefono, modificacion } = req.body || {};
+    const { nombre, ubicacion, telefono } = req.body;
+
     await pool.query(
-      `UPDATE empresa SET nombre = $1,
+      `UPDATE empresa 
+       SET nombre = $1,
            ubicacion = $2,
            telefono = $3,
-           modificacion = true WHERE id=1`,
-      [nombre || null, ubicacion || null, telefono || null, modificacion]
+           modificacion = true
+       WHERE id = 1`,
+      [nombre || null, ubicacion || null, telefono || null]
     );
+
     ok(res, { id: 1 });
   } catch (e) {
     console.error(e);
     fail(res, "Error actualizando empresa", 500);
   }
 });
+
 
 export default router;
