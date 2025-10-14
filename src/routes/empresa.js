@@ -20,10 +20,10 @@ router.put("/", async (req, res) => {
   try {
     const { nombre, ubicacion, telefono, modificacion } = req.body || {};
     await pool.query(
-      `UPDATE empresa SET nombre = EXCLUDED.nombre,
-           ubicacion = EXCLUDED.ubicacion,
-           telefono = EXCLUDED.telefono,
-           modificacion = EXCLUDED.modificacion WHERE id=1`,
+      `UPDATE empresa SET nombre = $1,
+           ubicacion = $2,
+           telefono = $3,
+           modificacion = true WHERE id=1`,
       [nombre || null, ubicacion || null, telefono || null, modificacion]
     );
     ok(res, { id: 1 });
