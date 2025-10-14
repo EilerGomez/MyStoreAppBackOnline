@@ -20,13 +20,10 @@ router.put("/", async (req, res) => {
   try {
     const { nombre, ubicacion, telefono, modificacion } = req.body || {};
     await pool.query(
-      `INSERT INTO empresa (id, nombre, ubicacion, telefono, modificacion)
-       VALUES (1, $1, $2, $3, COALESCE($4, TRUE))
-       ON CONFLICT (id) DO UPDATE
-       SET nombre = EXCLUDED.nombre,
+      `UPDATE empresa SET nombre = EXCLUDED.nombre,
            ubicacion = EXCLUDED.ubicacion,
            telefono = EXCLUDED.telefono,
-           modificacion = EXCLUDED.modificacion`,
+           modificacion = EXCLUDED.modificacion WHERE id=1`,
       [nombre || null, ubicacion || null, telefono || null, modificacion]
     );
     ok(res, { id: 1 });
