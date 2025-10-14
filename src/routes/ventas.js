@@ -4,49 +4,159 @@ import { ok, fail, isInt, isNumber, isoToDateOnly } from "../utils.js";
 
 const router = Router();
 
-// GET /api/ventas  (lista simple con cliente)
+// GET /api/ventas  (lista con cliente completo e items)
 router.get("/", async (_req, res) => {
   try {
-    const { rows } = await pool.query(
-      `SELECT v.id, v.cliente, v.vendedor, v.total, v.fecha,
-              c.nombre AS cliente_nombre, c.apellido AS cliente_apellido
-       FROM ventas v
-       JOIN clientes c ON c.id = v.cliente
-       ORDER BY v.id DESC`
+    // 1️⃣ Traer todas las ventas junto con los datos del cliente
+    const { rows: ventas } = await pool.query(`
+      SELECT
+        v.id,
+        v.cliente          AS "clienteId",
+        v.vendedor,
+        v.total,
+        v.fecha,
+        c.cedula           AS "cliCedula",
+        c.nombre            AS "cliNombre",
+        c.apellido          AS "cliApellido",
+        c.telefono          AS "cliTelefono",
+        c.direccion         AS "cliDireccion"
+      FROM ventas v
+      JOIN clientes c ON c.id = v.cliente
+      ORDER BY v.id DESC
+    `);
+
+    if (!ventas.length) return ok(res, []);
+
+    // 2️⃣ Traer todos los items de todas las ventas con nombre de producto
+    const ventaIds = ventas.map((v) => v.id);
+    const { rows: items } = await pool.query(
+      `
+      SELECT
+        d.id,
+        d.id_venta          AS "ventaId",
+        d.id_pro            AS "productId",
+        d.cantidad,
+        d.precio,
+        p.nombre
+      FROM detalle d
+      JOIN productos p ON p.id = d.id_pro
+      WHERE d.id_venta = ANY($1::int[])
+      ORDER BY d.id
+      `,
+      [ventaIds]
     );
-    ok(res, rows);
+
+    // 3️⃣ Agrupar items por venta
+    const itemsPorVenta = {};
+    for (const it of items) {
+      if (!itemsPorVenta[it.ventaId]) itemsPorVenta[it.ventaId] = [];
+      itemsPorVenta[it.ventaId].push({
+        id: it.id,
+        productId: it.productId,
+        cantidad: it.cantidad,
+        precio: it.precio,
+        nombre: it.nombre,
+      });
+    }
+
+    // 4️⃣ Combinar todo en la estructura final
+    const ventasCompletas = ventas.map((v) => ({
+      id: v.id,
+      clienteId: v.clienteId,
+      vendedor: v.vendedor,
+      total: v.total,
+      fecha: v.fecha,
+      cliente: {
+        id: v.clienteId,
+        cedula: v.cliCedula,
+        nombre: v.cliNombre,
+        apellido: v.cliApellido,
+        telefono: v.cliTelefono,
+        direccion: v.cliDireccion,
+      },
+      items: itemsPorVenta[v.id] || [],
+    }));
+
+    ok(res, ventasCompletas);
   } catch (e) {
     console.error(e);
     fail(res, "Error listando ventas", 500);
   }
 });
 
-// GET /api/ventas/:id  (con items)
+
+// GET /api/ventas/:id  (con items y datos del cliente)
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     if (!isInt(id)) return fail(res, "ID inválido");
 
-    const { rows: vRows } = await pool.query(`SELECT * FROM ventas WHERE id = $1`, [id]);
-    if (!vRows.length) return fail(res, "No encontrada", 404);
-    const venta = vRows[0];
-
-    const { rows: items } = await pool.query(
-      `SELECT d.id, d.id_pro AS "productId", d.cantidad, d.precio,
-              p.nombre
-       FROM detalle d
-       JOIN productos p ON p.id = d.id_pro
-       WHERE d.id_venta = $1
-       ORDER BY d.id`,
+    // Traer venta + info del cliente
+    const { rows: vRows } = await pool.query(
+      `
+      SELECT
+        v.id,
+        v.cliente       AS "clienteId",
+        v.vendedor,
+        v.total,
+        v.fecha,
+        c.cedula        AS "cliCedula",
+        c.nombre        AS "cliNombre",
+        c.apellido      AS "cliApellido",
+        c.telefono      AS "cliTelefono",
+        c.direccion     AS "cliDireccion"
+      FROM ventas v
+      JOIN clientes c ON c.id = v.cliente
+      WHERE v.id = $1
+      `,
       [id]
     );
 
-    ok(res, { ...venta, items });
+    if (!vRows.length) return fail(res, "No encontrada", 404);
+    const v = vRows[0];
+
+    // Traer items con nombre de producto
+    const { rows: items } = await pool.query(
+      `
+      SELECT
+        d.id,
+        d.id_pro      AS "productId",
+        d.cantidad,
+        d.precio,
+        p.nombre
+      FROM detalle d
+      JOIN productos p ON p.id = d.id_pro
+      WHERE d.id_venta = $1
+      ORDER BY d.id
+      `,
+      [id]
+    );
+
+    // Respuesta: conserva clienteId y agrega objeto cliente para la factura
+    const venta = {
+      id: v.id,
+      clienteId: v.clienteId,
+      vendedor: v.vendedor,
+      total: v.total,
+      fecha: v.fecha,
+      cliente: {
+        id: v.clienteId,
+        cedula: v.cliCedula,
+        nombre: v.cliNombre,
+        apellido: v.cliApellido,
+        telefono: v.cliTelefono,
+        direccion: v.cliDireccion,
+      },
+      items,
+    };
+
+    ok(res, venta);
   } catch (e) {
     console.error(e);
     fail(res, "Error obteniendo venta", 500);
   }
 });
+
 
 /**
  * POST /api/ventas
