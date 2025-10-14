@@ -10,11 +10,7 @@ import ingresoRouter from "./routes/ingreso_producto.js";
 
 const app = express();
 
-app.use(cors({
-  origin:[ process.env.FRONTEND_ORIGIN?.split(",") || "*",
-  "https://mystoreapponline.onrender.com"
-  ]
-}));
+app.use(cors());
 app.use(express.json());
 
 // Rutas
