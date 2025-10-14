@@ -18,26 +18,31 @@ router.get("/", async (_req, res) => {
 router.put("/", async (req, res) => {
   try {
     const { nombre, ubicacion, telefono } = req.body;
+
     if (!nombre && !ubicacion && !telefono) {
-        return fail(res, "Debe enviar al menos un campo a actualizar", 400);
+      return fail(res, "Debe enviar al menos un campo a actualizar", 400);
     }
 
-    await pool.query(
+    const result = await pool.query(
       `UPDATE empresa 
        SET nombre = $1,
            ubicacion = $2,
            telefono = $3,
            modificacion = true
-       WHERE id = 1`,
-      [nombre, ubicacion, telefono]
+       WHERE id = 1
+       RETURNING id, nombre, ubicacion, telefono, modificacion`,
+      [nombre || null, ubicacion || null, telefono || null]
     );
 
-    ok(res, { id: 1 });
+    const updatedEmpresa = result.rows[0];
+
+    ok(res, updatedEmpresa);
   } catch (e) {
     console.error(e);
     fail(res, "Error actualizando empresa", 500);
   }
 });
+
 
 
 export default router;
