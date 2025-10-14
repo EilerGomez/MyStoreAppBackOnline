@@ -18,6 +18,9 @@ router.get("/", async (_req, res) => {
 router.put("/", async (req, res) => {
   try {
     const { nombre, ubicacion, telefono } = req.body;
+    if (!nombre && !ubicacion && !telefono) {
+        return fail(res, "Debe enviar al menos un campo a actualizar", 400);
+    }
 
     await pool.query(
       `UPDATE empresa 
@@ -26,7 +29,7 @@ router.put("/", async (req, res) => {
            telefono = $3,
            modificacion = true
        WHERE id = 1`,
-      [nombre || null, ubicacion || null, telefono || null]
+      [nombre, ubicacion, telefono]
     );
 
     ok(res, { id: 1 });
