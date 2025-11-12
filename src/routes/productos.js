@@ -13,7 +13,7 @@ router.get("/", async (req, res) => {
     const like = `%${q}%`;
 
     const { rows } = await pool.query(
-      `SELECT id, nombre, codigo, stock, precio
+      `SELECT id, nombre, codigo, stock, precio,url_img
        FROM productos
        WHERE ($1 = '' OR nombre ILIKE $2 OR codigo ILIKE $2)
        ORDER BY id DESC
@@ -57,13 +57,13 @@ router.get("/codigo/:codigo", async (req, res) => {
 // POST /api/productos
 router.post("/", async (req, res) => {
   try {
-    const { nombre, codigo = null, stock = 0, precio } = req.body;
+    const { nombre, codigo = null, stock = 0, precio,url_img } = req.body;
     if (!nombre || !isNumber(precio)) return fail(res, "Datos inválidos");
 
     const { rows } = await pool.query(
-      `INSERT INTO productos (nombre, codigo, stock, precio)
+      `INSERT INTO productos (nombre, codigo, stock, precio,url_img)
        VALUES ($1,$2,$3,$4) RETURNING id`,
-      [nombre, codigo, Number(stock), Number(precio)]
+      [nombre, codigo, Number(stock), Number(precio),url_img]
     );
     ok(res, { id: rows[0].id }, 201);
   } catch (e) {
@@ -78,7 +78,7 @@ router.put("/:id", async (req, res) => {
     const { id } = req.params;
     if (!isInt(id)) return fail(res, "ID inválido");
 
-    const { nombre, codigo, stock, precio } = req.body;
+    const { nombre, codigo, stock, precio,url_img } = req.body;
 
     const sets = [];
     const vals = [];
@@ -86,6 +86,8 @@ router.put("/:id", async (req, res) => {
     if (codigo !== undefined) { sets.push(`codigo = $${sets.length + 1}`); vals.push(codigo); }
     if (stock !== undefined)  { sets.push(`stock = $${sets.length + 1}`);  vals.push(Number(stock)); }
     if (precio !== undefined) { sets.push(`precio = $${sets.length + 1}`); vals.push(Number(precio)); }
+    if (url_img !== undefined) { sets.push(`url_img = $${sets.length + 1}`); vals.push(url_img); }
+
     if (!sets.length) return fail(res, "Nada que actualizar");
 
     vals.push(id);
